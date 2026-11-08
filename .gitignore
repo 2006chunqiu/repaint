@@ -1,0 +1,9 @@
+node_modules/
+.env
+.DS_Store
+*.log
+
+# 本地自检产物
+.shots/
+.edge-profile*/
+.dev/

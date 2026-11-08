@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>重描 · 借画家的眼睛，重新看你的照片</title>
+<meta name="description" content="上传一张照片，选一位画家。DeepSeek 读懂它的光与色，写下画稿，图像模型把它画成油画、浮世绘或水墨。">
+<meta name="theme-color" content="#1b2320">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' fill='%231b2320'/%3E%3Ccircle cx='16' cy='16' r='8.5' fill='%23e3a72c'/%3E%3Ccircle cx='21' cy='11' r='3.2' fill='%232e5eaa'/%3E%3C/svg%3E">
+<link rel="stylesheet" href="./styles.css">
+</head>
+<body>
+<div class="wall-light" aria-hidden="true"></div>
+<div class="grain" aria-hidden="true"></div>
+
+<header class="topbar">
+  <div class="wordmark">
+    <span class="seal">重描</span>
+    <span class="latin">REPAINT</span>
+  </div>
+  <button class="status" id="statusBtn" type="button" aria-haspopup="dialog" aria-expanded="false" aria-controls="sheet">
+    <span class="status-dot" id="statusDot" data-state="unknown" aria-hidden="true"></span>
+    <span id="statusText">正在检查连接</span>
+  </button>
+</header>
+
+<main class="studio">
+
+  <div class="rail">
+
+  <section class="hero">
+    <h1>借画家的眼睛，<br>重新看你的照片</h1>
+    <svg class="brush" viewBox="0 0 640 20" preserveAspectRatio="none" aria-hidden="true">
+      <path pathLength="1" d="M3 13 C 60 8, 110 15, 170 11 C 230 7, 268 14, 330 10 C 392 6, 430 13, 492 9 C 548 6, 590 12, 637 8" />
+    </svg>
+    <p class="lede">
+      一张你自己的照片，配一位画家。DeepSeek 先读出它的光与色，写下这位画家会怎么下笔；再由图像模型把它真正画出来。
+    </p>
+  </section>
+
+  <section class="desk" aria-label="调色与操作">
+    <div class="paintbox">
+      <h2 class="desk-label">画笔盒</h2>
+      <div class="chips" id="chips" role="radiogroup" aria-label="选择一位画家"></div>
+    </div>
+
+    <label class="field">
+      <span class="desk-label">给画家的一句话<em>可留空</em></span>
+      <textarea id="note" rows="2" maxlength="120" placeholder="例：留住人物的脸，背景换成一整片向日葵"></textarea>
+    </label>
+
+    <div class="field">
+      <span class="desk-label">风格强度 <output id="strengthOut" for="strength">0.62</output></span>
+      <input type="range" id="strength" min="0" max="100" value="62" step="1">
+      <div class="scale"><span>留住照片</span><span>交给画家</span></div>
+    </div>
+
+    <div class="actions">
+      <button class="btn btn-primary" id="paintBtn" type="button" disabled>开始作画</button>
+      <button class="btn btn-quiet" id="resetBtn" type="button" hidden>换一张</button>
+    </div>
+  </section>
+
+  <section class="history" id="history" hidden aria-label="本次画过的手稿">
+    <h2 class="desk-label">本次画过</h2>
+    <div class="history-strip" id="historyStrip"></div>
+  </section>
+
+  </div>
+
+  <section class="stage" id="stage" aria-label="画布">
+    <div class="easel">
+      <div class="frame" id="frame" data-state="empty">
+
+        <div class="slot" id="emptyState">
+          <div class="corners" aria-hidden="true"><i></i><i></i><i></i><i></i></div>
+          <p class="slot-title">把你的照片放上画布</p>
+          <button class="btn btn-primary" id="pickBtn" type="button">选择照片</button>
+          <p class="slot-hint">拖进来，或按 Ctrl / ⌘ + V 粘贴。照片只在浏览器里处理，原图不会存到磁盘。</p>
+        </div>
+
+        <div class="view" id="view" hidden>
+          <img class="layer" id="imgOriginal" alt="你上传的原始照片">
+          <div class="layer painted" id="paintedLayer">
+            <img class="layer" id="imgPainted" alt="AI 按画家笔法重画的作品">
+          </div>
+          <input class="peel-range" id="peel" type="range" min="0" max="100" value="50"
+                 aria-label="左右拖动比较原图与画作" aria-valuetext="50% 画作">
+          <div class="peel-line" id="peelLine" aria-hidden="true"><span class="peel-grip"></span></div>
+          <span class="tag tag-left">原图</span>
+          <span class="tag tag-right">画作</span>
+        </div>
+
+        <div class="working" id="working" hidden>
+          <div class="daubs" aria-hidden="true"><i></i><i></i><i></i></div>
+          <p class="working-title" id="workingTitle">正在读你的照片</p>
+          <p class="working-sub" id="workingSub" aria-live="polite">量明暗、取主色、看构图</p>
+          <div class="working-bar" aria-hidden="true"><span></span></div>
+        </div>
+
+      </div>
+      <div class="ledge" aria-hidden="true"></div>
+    </div>
+  </section>
+
+  <section class="placard-wrap" id="placardWrap" hidden aria-label="画作签">
+    <article class="placard">
+      <p class="placard-kicker">画作签</p>
+      <h2 class="placard-title" id="plTitle">—</h2>
+      <dl class="placard-meta">
+        <div><dt>画家</dt><dd id="plPainter">—</dd></div>
+        <div><dt>媒介</dt><dd id="plMedium">—</dd></div>
+        <div><dt>年份</dt><dd id="plYear">—</dd></div>
+      </dl>
+      <p class="placard-note" id="plNote"></p>
+      <details class="placard-prompt">
+        <summary>看画稿 · DeepSeek 写的提示词</summary>
+        <p id="plPrompt"></p>
+        <button class="btn btn-tiny" id="copyPrompt" type="button">复制画稿</button>
+      </details>
+      <div class="placard-actions">
+        <button class="btn btn-primary" id="downloadBtn" type="button">下载画作</button>
+        <button class="btn btn-quiet" id="againBtn" type="button">再画一张</button>
+      </div>
+      <p class="placard-credit" id="plCredit"></p>
+    </article>
+  </section>
+
+  <section class="how">
+    <h2>一张照片的三道手续</h2>
+    <ol>
+      <li>
+        <span class="no">一</span>
+        <h3>量一遍</h3>
+        <p>浏览器先读主色、明暗分布与构图比例，写成一张只有数字的体检单。</p>
+      </li>
+      <li>
+        <span class="no">二</span>
+        <h3>写画稿</h3>
+        <p>DeepSeek 把体检单和画家档案合成一份施工说明：媒材、笔触、光从哪来。</p>
+      </li>
+      <li>
+        <span class="no">三</span>
+        <h3>下笔</h3>
+        <p>图像模型以你的照片为底稿重画，画签与画稿一并归档，随时可调出来看。</p>
+      </li>
+    </ol>
+  </section>
+
+</main>
+
+<footer class="foot">
+  <p>自己的 Key，跑在自己的机器上。服务端只做转发，不保存照片与成品。</p>
+  <p class="foot-dim">DeepSeek 负责读图与写画稿，图像模型负责落笔，两者都可以在 <code>.env</code> 里换。</p>
+</footer>
+
+<div class="veil" id="veil" data-open="false"></div>
+<aside class="sheet" id="sheet" role="dialog" aria-modal="true" aria-labelledby="sheetTitle" data-open="false" aria-hidden="true">
+  <div class="sheet-head">
+    <h2 id="sheetTitle">连接与配置</h2>
+    <button class="sheet-close" id="sheetClose" type="button" aria-label="关闭">×</button>
+  </div>
+  <div class="sheet-body">
+    <ul class="link-list" id="linkList">
+      <li><span class="link-name">DeepSeek</span><span class="link-state" id="dsState">检查中</span></li>
+      <li><span class="link-name">图像模型</span><span class="link-state" id="imgState">检查中</span></li>
+    </ul>
+    <p class="sheet-note" id="sheetNote"></p>
+
+    <div id="serverPanel">
+      <h3>改这两个地方</h3>
+      <p>打开项目根目录的 <code>.env</code>，填进 Key 后重启服务：</p>
+      <pre><code>DEEPSEEK_API_KEY=sk-…
+IMAGE_PROVIDER=openai-edit
+IMAGE_BASE_URL=https://api.openai.com/v1
+IMAGE_API_KEY=sk-…
+IMAGE_MODEL=gpt-image-1</code></pre>
+      <p class="sheet-fine">
+        DeepSeek 的官方接口是纯文本模型，不接受图片输入，也不能输出图片。所以它在这条流水线里做的是「看懂数据的艺术总监」：读色彩与构图、写画稿、写画签。真正的落笔交给图像模型。
+      </p>
+    </div>
+
+    <div id="staticPanel" hidden>
+      <h3>在浏览器里直连 DeepSeek</h3>
+      <p>
+        这个站点是纯静态托管，没有后端，所以 Key 不能藏在服务器上。填你自己的 DeepSeek Key，画稿与画签就由真模型来写；不填也能用，只是退回内置规则。
+      </p>
+      <label class="key-field">
+        <span>DeepSeek Key</span>
+        <input id="keyInput" type="password" autocomplete="off" spellcheck="false" placeholder="sk-…">
+      </label>
+      <div class="key-actions">
+        <button class="btn btn-primary btn-small" id="keySave" type="button">保存并验证</button>
+        <button class="btn btn-quiet btn-small" id="keyClear" type="button">清除</button>
+      </div>
+      <p class="key-status" id="keyStatus"></p>
+      <p class="sheet-fine">
+        Key 只写进这台设备的 localStorage，不上传任何服务器。在别人电脑上打开这个页面，需要重新填。落笔固定由内置笔触引擎完成——静态站调不了图像模型。
+      </p>
+    </div>
+  </div>
+</aside>
+
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+<canvas id="work" hidden></canvas>
+<input type="file" id="file" accept="image/*" hidden>
+
+<script type="module" src="./app.js"></script>
+</body>
+</html>
